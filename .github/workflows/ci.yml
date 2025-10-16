@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout the repo
+      # 1️⃣ Checkout repo
       - name: Checkout code
         uses: actions/checkout@v3
 
@@ -38,7 +38,7 @@ jobs:
           pip install -r requirements.txt
           pip install shap lime scikit-learn pandas matplotlib pyarrow joblib
 
-      # 5️⃣ Download hotel dataset if not present (optional)
+      # 5️⃣ Download dataset if not present
       - name: Download dataset
         run: |
           DATA_DIR=data/processed
@@ -63,17 +63,20 @@ jobs:
         run: |
           python src/hotel/fairness/fairness_audit.py
 
-      # 8️⃣ Upload outputs as artifacts
+      # 8️⃣ Upload Explainability artifacts
       - name: Upload Explainability Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: explainability-reports
-          path: |
-            reports/explain/*
+          path: reports/explain/*
+          retention-days: 7
+          if-no-files-found: warn
 
+      # 9️⃣ Upload Fairness artifacts
       - name: Upload Fairness Artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: fairness-reports
-          path: |
-            reports/fairness/*
+          path: reports/fairness/*
+          retention-days: 7
+          if-no-files-found: warn
