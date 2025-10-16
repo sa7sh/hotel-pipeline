@@ -56,12 +56,12 @@ jobs:
       # 6️⃣ Run explainability script
       - name: Run SHAP and LIME
         run: |
-          python src/hotel/explain/explainability.py
+          python src/bigbasket/explain/explainability.py
 
       # 7️⃣ Run fairness audit
       - name: Run Fairness Audit
         run: |
-          python src/hotel/fairness/fairness_audit.py
+          python src/bigbasket/fairness/fairness_audit.py
 
       # 8️⃣ Upload Explainability artifacts
       - name: Upload Explainability Artifacts
@@ -80,3 +80,11 @@ jobs:
           path: reports/fairness/*
           retention-days: 7
           if-no-files-found: warn
+
+        # Add this after fairness artifacts upload (or before)
+      # 🔹 Build Docker image
+      - name: Build Docker image
+        run: |
+          docker build -t hotel-pipeline:latest .
+
+     
