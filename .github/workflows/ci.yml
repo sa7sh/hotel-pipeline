@@ -1,0 +1,79 @@
+# .github/workflows/hotel_pipeline.yml
+name: Hotel Dataset Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  run_pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1️⃣ Checkout the repo
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2️⃣ Setup Python
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.13'
+
+      # 3️⃣ Cache pip dependencies
+      - name: Cache pip
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      # 4️⃣ Install dependencies
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install shap lime scikit-learn pandas matplotlib pyarrow joblib
+
+      # 5️⃣ Download hotel dataset if not present (optional)
+      - name: Download dataset
+        run: |
+          DATA_DIR=data/processed
+          mkdir -p $DATA_DIR
+          if [ ! -f "$DATA_DIR/X_train.parquet" ]; then
+            echo "Downloading hotel dataset..."
+            curl -L -o $DATA_DIR/X_train.parquet "YOUR_X_TRAIN_URL"
+            curl -L -o $DATA_DIR/X_test.parquet "YOUR_X_TEST_URL"
+            curl -L -o $DATA_DIR/y_train.parquet "YOUR_Y_TRAIN_URL"
+            curl -L -o $DATA_DIR/y_test.parquet "YOUR_Y_TEST_URL"
+          else
+            echo "Dataset already exists, skipping download."
+          fi
+
+      # 6️⃣ Run explainability script
+      - name: Run SHAP and LIME
+        run: |
+          python src/hotel/explain/explainability.py
+
+      # 7️⃣ Run fairness audit
+      - name: Run Fairness Audit
+        run: |
+          python src/hotel/fairness/fairness_audit.py
+
+      # 8️⃣ Upload outputs as artifacts
+      - name: Upload Explainability Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: explainability-reports
+          path: |
+            reports/explain/*
+
+      - name: Upload Fairness Artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: fairness-reports
+          path: |
+            reports/fairness/*

@@ -1,0 +1,10 @@
+artifact_location: file:///D:/Saish/BIGBASKET-PIPELINE/mlruns/279751602919453559/models/m-f2643ac39e88425989058702565ecf62/artifacts
+creation_timestamp: 1760629760641
+experiment_id: '279751602919453559'
+last_updated_timestamp: 1760629775402
+model_id: m-f2643ac39e88425989058702565ecf62
+model_type: null
+name: rf_model
+source_run_id: 657f932a15ef4169a76f97fb31af5b21
+status: 2
+status_message: null
