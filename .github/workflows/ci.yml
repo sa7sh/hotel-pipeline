@@ -38,7 +38,7 @@ jobs:
           pip install -r requirements.txt
           pip install shap lime scikit-learn pandas matplotlib pyarrow joblib
 
-      # 5️⃣ Download dataset if not present
+      # 5️⃣ Download dataset (if needed)
       - name: Download dataset
         run: |
           DATA_DIR=data/processed
@@ -53,15 +53,13 @@ jobs:
             echo "Dataset already exists, skipping download."
           fi
 
-      # 6️⃣ Run explainability script
-      - name: Run SHAP and LIME
-        run: |
-          python src/bigbasket/explain/explainability.py
+      # 6️⃣ Run explainability (SHAP + LIME)
+      - name: Run Explainability
+        run: python ./src/bigbasket/explain/explainability.py
 
       # 7️⃣ Run fairness audit
       - name: Run Fairness Audit
-        run: |
-          python src/bigbasket/fairness/fairness_audit.py
+        run: python ./src/bigbasket/fairness/fairness_audit.py
 
       # 8️⃣ Upload Explainability artifacts
       - name: Upload Explainability Artifacts
@@ -81,10 +79,20 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
 
-        # Add this after fairness artifacts upload (or before)
-      # 🔹 Build Docker image
+      # 🔟 Build Docker image
       - name: Build Docker image
-        run: |
-          docker build -t hotel-pipeline:latest .
+        run: docker build -t hotel-pipeline:latest .
 
-     
+      # Optional: login and push Docker image
+      - name: Docker Login
+        if: secrets.DOCKER_USERNAME && secrets.DOCKER_PASSWORD
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Push Docker image
+        if: secrets.DOCKER_USERNAME && secrets.DOCKER_PASSWORD
+        run: |
+          docker tag hotel-pipeline:latest ${{ secrets.DOCKER_USERNAME }}/hotel-pipeline:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/hotel-pipeline:latest

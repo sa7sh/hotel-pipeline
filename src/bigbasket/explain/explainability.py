@@ -87,24 +87,26 @@
 #     # Use first row of X_test for LIME
 #     lime_local(model, X_train, X_test.head(1))
 # src/hotel/explain/explainability.py
-import os
+# src/bigbasket/explain/explainability.py
 import joblib
 import pandas as pd
 import shap
-import matplotlib.pyplot as plt
+import os
 from lime.lime_tabular import LimeTabularExplainer
+import matplotlib.pyplot as plt
 
-# Directories (relative paths)
-MODEL_DIR = "models"
-PROCESSED_DIR = "data/processed"
-OUT_DIR = "reports/explain"
+MODEL_DIR = os.getenv("MODEL_DIR", "models")
+PROCESSED_DIR = os.getenv("OUT_DIR", "data/processed")
+OUT_DIR = os.getenv("EXPLAIN_DIR", "reports/explain")
 os.makedirs(OUT_DIR, exist_ok=True)
 
 def global_shap(model, X_sample):
+    """Compute SHAP values and save summary plot."""
     try:
         explainer = shap.TreeExplainer(model)
     except Exception:
         explainer = shap.KernelExplainer(model.predict_proba, X_sample)
+
     shap_values = explainer.shap_values(X_sample)
     plt.figure()
     shap.summary_plot(shap_values, X_sample, show=False)
@@ -112,26 +114,42 @@ def global_shap(model, X_sample):
     print("Saved SHAP summary to", OUT_DIR)
 
 def lime_local(model, X_train, X_sample):
+    """Compute LIME local explanations and save HTML."""
+    # Remove constant columns to avoid LIME domain errors
+    X_train_clean = X_train.loc[:, X_train.nunique() > 1]
+    removed_cols = X_train.columns[X_train.nunique() == 1].tolist()
+    if removed_cols:
+        print("Removed constant columns for LIME:", removed_cols)
+    X_sample_clean = X_sample[X_train_clean.columns]
+
     explainer = LimeTabularExplainer(
-        training_data=X_train.values,
-        feature_names=X_train.columns.tolist(),
+        training_data=X_train_clean.values,
+        feature_names=X_train_clean.columns.tolist(),
         class_names=[str(c) for c in model.classes_],
         mode='classification'
     )
-    exp = explainer.explain_instance(X_sample.values[0], model.predict_proba, num_features=10)
-    html = exp.as_html()
-    with open(os.path.join(OUT_DIR, "lime_local.html"), "w", encoding="utf-8") as f:
-        f.write(html)
-    print("Saved LIME html to", OUT_DIR)
+
+    try:
+        exp = explainer.explain_instance(
+            X_sample_clean.values[0],
+            model.predict_proba,
+            num_features=10
+        )
+        html = exp.as_html()
+        with open(os.path.join(OUT_DIR, "lime_local.html"), "w", encoding="utf-8") as f:
+            f.write(html)
+        print("Saved LIME html to", OUT_DIR)
+    except ValueError as e:
+        print("LIME failed:", e)
 
 if __name__ == "__main__":
     model = joblib.load(os.path.join(MODEL_DIR, "rf_model.joblib"))
+
     X_train = pd.read_parquet(os.path.join(PROCESSED_DIR, "X_train.parquet"))
     X_test = pd.read_parquet(os.path.join(PROCESSED_DIR, "X_test.parquet"))
 
-    # SHAP sample
+    # Sample for SHAP to speed up computation
     X_sample = X_test.sample(min(100, len(X_test)), random_state=42)
-    global_shap(model, X_sample)
 
-    # LIME on first test row
+    global_shap(model, X_sample)
     lime_local(model, X_train, X_test.head(1))
